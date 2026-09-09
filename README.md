@@ -16,7 +16,11 @@ Add this repository to your Red instance, then install a cog from it:
 
 | Cog | Description |
 | --- | --- |
-| `example` | Demonstrates the standard cog layout. Safe to remove once real cogs are added. |
+| `gamelog` | Logs what games members are playing per server, who's playing what, and how long each session lasts. Ignores non-game statuses (Spotify, custom statuses, etc). Requires the Presence and Server Members privileged intents. |
+
+## Privileged intents
+
+`gamelog` needs the **Presence Intent** and **Server Members Intent** enabled for the bot, both in the [Discord developer portal](https://discord.com/developers/applications) (under your application's Bot settings) and in Red's own intents config (`redbot-setup` lets you toggle these, or edit the instance's intents). Without both, the cog will never see game activity changes and will log nothing.
 
 ## Contact
 

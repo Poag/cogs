@@ -1,0 +1,11 @@
+{
+    "author": ["Poag"],
+    "min_bot_version": "3.5.0",
+    "description": "Logs what games members are playing in a server: who's playing what, and how long each session lasts. Only 'Playing' activities count as games; other statuses (Spotify, custom statuses, streaming, watching) are ignored. Requires the Presence and Server Members privileged intents to be enabled for the bot.",
+    "hidden": false,
+    "install_msg": "Thanks for installing GameLog! This cog requires the Presence and Server Members privileged intents to be enabled for the bot in order to see game activity - see the repo README for details.",
+    "short": "Logs per-session game activity for members.",
+    "end_user_data_statement": "This cog stores, per server: a Discord user ID, the name of each detected game activity, and the start time, end time, and duration of each play session. This is used only to answer in-server playtime queries via this cog's commands. All stored data for a user is deleted when Red processes a data deletion request for that user.",
+    "requirements": [],
+    "tags": ["logging", "presence", "games", "stats"]
+}
