@@ -1,0 +1,11 @@
+{
+    "author": ["Poag"],
+    "min_bot_version": "3.5.0",
+    "description": "An example cog demonstrating the standard Red cog layout. Safe to remove once you've added your own cogs.",
+    "hidden": false,
+    "install_msg": "Thanks for installing the example cog!",
+    "short": "Example cog demonstrating the standard layout.",
+    "end_user_data_statement": "This cog does not store any end user data.",
+    "requirements": [],
+    "tags": ["example"]
+}

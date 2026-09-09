@@ -1,0 +1,8 @@
+{
+    "author": ["Poag"],
+    "install_msg": "Thanks for adding Poag's cogs repo! Use `[p]cog list cogs` to see what's available.",
+    "name": "cogs",
+    "short": "Poag's cogs for Red-DiscordBot.",
+    "description": "A collection of custom cogs for Red-DiscordBot.",
+    "tags": ["utility"]
+}
