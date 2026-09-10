@@ -1,11 +1,11 @@
 {
     "author": ["Poag"],
     "min_bot_version": "3.5.0",
-    "description": "Logs what games members are playing and what voice channels they're in, per server: who's playing what, who's in voice, and how long each session lasts. Only 'Playing' activities count as games; other statuses (Spotify, custom statuses, streaming, watching) are ignored. Includes commands to list all games logged, per-member voice time, the top 10 players of a given game, and the top 10 players across all games combined. The raw session logs are intended as a base for later relationship-graph analysis (who was in voice together, what they were playing at the time). Requires the Presence, Server Members, and Voice States intents to be enabled for the bot.",
+    "description": "Logs what games members are playing in a server: who's playing what, and how long each session lasts. Only 'Playing' activities count as games; other statuses (Spotify, custom statuses, streaming, watching) are ignored. Includes commands to list all games logged, the top 10 players of a given game, and the top 10 players across all games combined. Pairs with the separate voicelog cog: joining this cog's session data against voicelog's on user_id and overlapping time is the intended basis for a future relationship graph. Requires the Presence and Server Members privileged intents to be enabled for the bot.",
     "hidden": false,
-    "install_msg": "Thanks for installing GameLog! This cog requires the Presence, Server Members, and Voice States intents to be enabled for the bot in order to see game and voice activity - see the repo README for details.",
-    "short": "Logs per-session game and voice channel activity for members.",
-    "end_user_data_statement": "This cog stores, per server: a Discord user ID, the name of each detected game activity or the voice channel ID, and the start time, end time, and duration of each session. This is used only to answer in-server playtime/voice-time queries via this cog's commands, and may be used to derive relationship data (who was in voice together) in the future. All stored data for a user is deleted when Red processes a data deletion request for that user.",
+    "install_msg": "Thanks for installing GameLog! This cog requires the Presence and Server Members privileged intents to be enabled for the bot in order to see game activity - see the repo README for details.",
+    "short": "Logs per-session game activity for members.",
+    "end_user_data_statement": "This cog stores, per server: a Discord user ID, the name of each detected game activity, and the start time, end time, and duration of each play session. This is used only to answer in-server playtime queries via this cog's commands, and may be used to derive relationship data (cross-referenced with the voicelog cog) in the future. All stored data for a user is deleted when Red processes a data deletion request for that user.",
     "requirements": [],
-    "tags": ["logging", "presence", "voice", "games", "stats"]
+    "tags": ["logging", "presence", "games", "stats"]
 }

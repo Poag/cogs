@@ -1,0 +1,159 @@
+import asyncio
+import datetime
+import logging
+import sqlite3
+from typing import Dict, Optional, Tuple
+
+import discord
+from redbot.core import commands
+from redbot.core.data_manager import cog_data_path
+from redbot.core.utils.chat_formatting import humanize_timedelta
+
+log = logging.getLogger("red.voicelog")
+
+
+class VoiceLog(commands.Cog):
+    """Logs who's in voice channels in a server, and how long each session lasts.
+
+    Sessions are logged as plain start/end intervals per user per channel.
+    This cog doesn't compute "who was with whom" itself - that's meant to
+    be derived later by joining ``voice_sessions`` against itself on
+    matching ``channel_id`` with overlapping ``[start_time, end_time]``
+    windows. Cross-referencing against the ``gamelog`` cog's ``sessions``
+    table (matching ``user_id``, overlapping time) shows what game someone
+    was playing during a given voice session. Those joins are the intended
+    basis for a relationship graph built from this data.
+    """
+
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+        db_path = cog_data_path(self) / "voicelog.sqlite3"
+        self._db = sqlite3.connect(str(db_path), check_same_thread=False)
+        self._db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS voice_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                channel_id INTEGER NOT NULL,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                duration INTEGER NOT NULL
+            )
+            """
+        )
+        self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_voice_sessions_guild_user "
+            "ON voice_sessions (guild_id, user_id)"
+        )
+        self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_voice_sessions_guild_channel_time "
+            "ON voice_sessions (guild_id, channel_id, start_time, end_time)"
+        )
+        self._db.commit()
+        self._db_lock = asyncio.Lock()
+        # (guild_id, user_id) -> (channel_id, when that voice session started)
+        self._active: Dict[Tuple[int, int], Tuple[int, datetime.datetime]] = {}
+
+    def cog_unload(self) -> None:
+        self._db.close()
+
+    async def cog_load(self) -> None:
+        if not self.bot.intents.voice_states:
+            log.warning(
+                "VoiceLog requires the Voice States intent to log voice channel "
+                "activity. Enable it in Red's intents settings, then restart the bot."
+            )
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
+    ) -> None:
+        if member.bot or before.channel == after.channel:
+            return
+
+        now = discord.utils.utcnow()
+        key = (member.guild.id, member.id)
+
+        if before.channel is not None:
+            entry = self._active.pop(key, None)
+            if entry is not None:
+                channel_id, start = entry
+                duration = int((now - start).total_seconds())
+                if duration > 0:
+                    await self._log_session(
+                        member.guild.id, member.id, channel_id, start, now, duration
+                    )
+
+        if after.channel is not None:
+            self._active[key] = (after.channel.id, now)
+
+    async def _log_session(
+        self,
+        guild_id: int,
+        user_id: int,
+        channel_id: int,
+        start: datetime.datetime,
+        end: datetime.datetime,
+        duration: int,
+    ) -> None:
+        def _insert() -> None:
+            self._db.execute(
+                "INSERT INTO voice_sessions "
+                "(guild_id, user_id, channel_id, start_time, end_time, duration) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (guild_id, user_id, channel_id, int(start.timestamp()), int(end.timestamp()), duration),
+            )
+            self._db.commit()
+
+        async with self._db_lock:
+            await asyncio.get_running_loop().run_in_executor(None, _insert)
+
+    @commands.guild_only()
+    @commands.group()
+    async def voicelog(self, ctx: commands.Context) -> None:
+        """View logged voice channel activity for this server."""
+
+    @voicelog.command(name="voicetime")
+    async def voicelog_voicetime(
+        self, ctx: commands.Context, member: Optional[discord.Member] = None
+    ) -> None:
+        """Show total logged voice channel time for a member (yourself by default)."""
+        member = member or ctx.author
+
+        def _query():
+            cur = self._db.execute(
+                "SELECT channel_id, SUM(duration) FROM voice_sessions "
+                "WHERE guild_id = ? AND user_id = ? "
+                "GROUP BY channel_id ORDER BY SUM(duration) DESC",
+                (ctx.guild.id, member.id),
+            )
+            return cur.fetchall()
+
+        async with self._db_lock:
+            rows = await asyncio.get_running_loop().run_in_executor(None, _query)
+
+        if not rows:
+            await ctx.send(f"No logged voice activity for {member.display_name} in this server yet.")
+            return
+
+        lines = []
+        for channel_id, total in rows:
+            channel = ctx.guild.get_channel(channel_id)
+            name = channel.name if channel else f"deleted-channel-{channel_id}"
+            lines.append(f"#{name}: {humanize_timedelta(seconds=total)}")
+
+        embed = discord.Embed(
+            title=f"Voice time for {member.display_name}",
+            description="\n".join(lines),
+            color=await ctx.embed_color(),
+        )
+        await ctx.send(embed=embed)
+
+    async def red_delete_data_for_user(self, *, requester, user_id: int) -> None:
+        def _delete() -> None:
+            self._db.execute("DELETE FROM voice_sessions WHERE user_id = ?", (user_id,))
+            self._db.commit()
+
+        async with self._db_lock:
+            await asyncio.get_running_loop().run_in_executor(None, _delete)
