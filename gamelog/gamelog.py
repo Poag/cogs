@@ -7,7 +7,7 @@ from typing import Dict, Optional, Tuple
 import discord
 from redbot.core import commands
 from redbot.core.data_manager import cog_data_path
-from redbot.core.utils.chat_formatting import humanize_timedelta
+from redbot.core.utils.chat_formatting import box, humanize_timedelta, pagify
 
 log = logging.getLogger("red.gamelog")
 
@@ -149,7 +149,7 @@ class GameLog(commands.Cog):
 
     @gamelog.command(name="top")
     async def gamelog_top(self, ctx: commands.Context, *, game: str) -> None:
-        """Show the top players of a game in this server by total logged time."""
+        """Show the top 10 players of a game in this server by total logged time."""
 
         def _query():
             cur = self._db.execute(
@@ -167,18 +167,74 @@ class GameLog(commands.Cog):
             await ctx.send(f"No logged activity for **{game}** in this server yet.")
             return
 
+        embed = discord.Embed(
+            title=f"Top players: {game}",
+            description=self._format_leaderboard(ctx, rows),
+            color=await ctx.embed_color(),
+        )
+        await ctx.send(embed=embed)
+
+    @gamelog.command(name="leaderboard")
+    async def gamelog_leaderboard(self, ctx: commands.Context) -> None:
+        """Show the top 10 players in this server by total logged time, across all games."""
+
+        def _query():
+            cur = self._db.execute(
+                "SELECT user_id, SUM(duration) FROM sessions "
+                "WHERE guild_id = ? GROUP BY user_id ORDER BY SUM(duration) DESC LIMIT 10",
+                (ctx.guild.id,),
+            )
+            return cur.fetchall()
+
+        async with self._db_lock:
+            rows = await asyncio.get_running_loop().run_in_executor(None, _query)
+
+        if not rows:
+            await ctx.send("No game activity has been logged in this server yet.")
+            return
+
+        embed = discord.Embed(
+            title="Top players (all games)",
+            description=self._format_leaderboard(ctx, rows),
+            color=await ctx.embed_color(),
+        )
+        await ctx.send(embed=embed)
+
+    @gamelog.command(name="games")
+    async def gamelog_games(self, ctx: commands.Context) -> None:
+        """List every game logged in this server, sorted by total time played."""
+
+        def _query():
+            cur = self._db.execute(
+                "SELECT game, SUM(duration), COUNT(DISTINCT user_id) FROM sessions "
+                "WHERE guild_id = ? GROUP BY game ORDER BY SUM(duration) DESC",
+                (ctx.guild.id,),
+            )
+            return cur.fetchall()
+
+        async with self._db_lock:
+            rows = await asyncio.get_running_loop().run_in_executor(None, _query)
+
+        if not rows:
+            await ctx.send("No game activity has been logged in this server yet.")
+            return
+
+        lines = [
+            f"{game} — {humanize_timedelta(seconds=total)} "
+            f"({players} player{'s' if players != 1 else ''})"
+            for game, total, players in rows
+        ]
+        for page in pagify("\n".join(lines)):
+            await ctx.send(box(page))
+
+    @staticmethod
+    def _format_leaderboard(ctx: commands.Context, rows) -> str:
         lines = []
         for rank, (user_id, total) in enumerate(rows, start=1):
             member = ctx.guild.get_member(user_id)
             name = member.display_name if member else f"<@{user_id}>"
             lines.append(f"{rank}. {name} — {humanize_timedelta(seconds=total)}")
-
-        embed = discord.Embed(
-            title=f"Top players: {game}",
-            description="\n".join(lines),
-            color=await ctx.embed_color(),
-        )
-        await ctx.send(embed=embed)
+        return "\n".join(lines)
 
     async def red_delete_data_for_user(self, *, requester, user_id: int) -> None:
         def _delete() -> None:

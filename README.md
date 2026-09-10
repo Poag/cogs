@@ -18,6 +18,15 @@ Add this repository to your Red instance, then install a cog from it:
 | --- | --- |
 | `gamelog` | Logs what games members are playing per server, who's playing what, and how long each session lasts. Ignores non-game statuses (Spotify, custom statuses, etc). Requires the Presence and Server Members privileged intents. |
 
+### gamelog commands
+
+| Command | Description |
+| --- | --- |
+| `[p]gamelog playtime [member]` | Total logged time per game for a member (yourself by default). |
+| `[p]gamelog top <game>` | Top 10 players of a specific game, by time played. |
+| `[p]gamelog leaderboard` | Top 10 players across all games combined, by time played. |
+| `[p]gamelog games` | Every game logged in the server, sorted by total time played. |
+
 ## Privileged intents
 
 `gamelog` needs the **Presence Intent** and **Server Members Intent** enabled for the bot, both in the [Discord developer portal](https://discord.com/developers/applications) (under your application's Bot settings) and in Red's own intents config (`redbot-setup` lets you toggle these, or edit the instance's intents). Without both, the cog will never see game activity changes and will log nothing.
