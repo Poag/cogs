@@ -13,10 +13,18 @@ log = logging.getLogger("red.gamelog")
 
 
 class GameLog(commands.Cog):
-    """Logs who's playing what game in a server, and how long each session lasts.
+    """Logs who's playing what game and who's in voice channels, in a server.
 
     Only "Playing" activities count as games. Other presence types (Spotify,
     other listening/watching/streaming/custom statuses) are ignored.
+
+    Game sessions and voice sessions are both logged as plain start/end
+    intervals. Who was in voice "with" whom, and what game someone was
+    playing during a given voice session, aren't computed by this cog -
+    they can both be derived later by joining ``voice_sessions`` on
+    overlapping ``channel_id``/time ranges, and joining against ``sessions``
+    (the game log) on ``user_id``/overlapping time ranges. That join is the
+    basis for building a relationship graph from this data.
     """
 
     def __init__(self, bot: commands.Bot) -> None:
@@ -40,10 +48,33 @@ class GameLog(commands.Cog):
             "CREATE INDEX IF NOT EXISTS idx_sessions_guild_user_game "
             "ON sessions (guild_id, user_id, game)"
         )
+        self._db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS voice_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                channel_id INTEGER NOT NULL,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                duration INTEGER NOT NULL
+            )
+            """
+        )
+        self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_voice_sessions_guild_user "
+            "ON voice_sessions (guild_id, user_id)"
+        )
+        self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_voice_sessions_guild_channel_time "
+            "ON voice_sessions (guild_id, channel_id, start_time, end_time)"
+        )
         self._db.commit()
         self._db_lock = asyncio.Lock()
         # (guild_id, user_id, game) -> when that session started
         self._active: Dict[Tuple[int, int, str], datetime.datetime] = {}
+        # (guild_id, user_id) -> (channel_id, when that voice session started)
+        self._voice_active: Dict[Tuple[int, int], Tuple[int, datetime.datetime]] = {}
 
     def cog_unload(self) -> None:
         self._db.close()
@@ -54,6 +85,11 @@ class GameLog(commands.Cog):
                 "GameLog requires the Presence and Server Members privileged intents. "
                 "Enable both in the Discord developer portal and in Red's intents "
                 "settings, then restart the bot, or game activity will never be seen."
+            )
+        if not self.bot.intents.voice_states:
+            log.warning(
+                "GameLog requires the Voice States intent to log voice channel "
+                "activity. Enable it in Red's intents settings, then restart the bot."
             )
 
     @staticmethod
@@ -105,6 +141,50 @@ class GameLog(commands.Cog):
                 "INSERT INTO sessions (guild_id, user_id, game, start_time, end_time, duration) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (guild_id, user_id, game, int(start.timestamp()), int(end.timestamp()), duration),
+            )
+            self._db.commit()
+
+        async with self._db_lock:
+            await asyncio.get_running_loop().run_in_executor(None, _insert)
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
+    ) -> None:
+        if member.bot or before.channel == after.channel:
+            return
+
+        now = discord.utils.utcnow()
+        key = (member.guild.id, member.id)
+
+        if before.channel is not None:
+            entry = self._voice_active.pop(key, None)
+            if entry is not None:
+                channel_id, start = entry
+                duration = int((now - start).total_seconds())
+                if duration > 0:
+                    await self._log_voice_session(
+                        member.guild.id, member.id, channel_id, start, now, duration
+                    )
+
+        if after.channel is not None:
+            self._voice_active[key] = (after.channel.id, now)
+
+    async def _log_voice_session(
+        self,
+        guild_id: int,
+        user_id: int,
+        channel_id: int,
+        start: datetime.datetime,
+        end: datetime.datetime,
+        duration: int,
+    ) -> None:
+        def _insert() -> None:
+            self._db.execute(
+                "INSERT INTO voice_sessions "
+                "(guild_id, user_id, channel_id, start_time, end_time, duration) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (guild_id, user_id, channel_id, int(start.timestamp()), int(end.timestamp()), duration),
             )
             self._db.commit()
 
@@ -227,6 +307,42 @@ class GameLog(commands.Cog):
         for page in pagify("\n".join(lines)):
             await ctx.send(box(page))
 
+    @gamelog.command(name="voicetime")
+    async def gamelog_voicetime(
+        self, ctx: commands.Context, member: Optional[discord.Member] = None
+    ) -> None:
+        """Show total logged voice channel time for a member (yourself by default)."""
+        member = member or ctx.author
+
+        def _query():
+            cur = self._db.execute(
+                "SELECT channel_id, SUM(duration) FROM voice_sessions "
+                "WHERE guild_id = ? AND user_id = ? "
+                "GROUP BY channel_id ORDER BY SUM(duration) DESC",
+                (ctx.guild.id, member.id),
+            )
+            return cur.fetchall()
+
+        async with self._db_lock:
+            rows = await asyncio.get_running_loop().run_in_executor(None, _query)
+
+        if not rows:
+            await ctx.send(f"No logged voice activity for {member.display_name} in this server yet.")
+            return
+
+        lines = []
+        for channel_id, total in rows:
+            channel = ctx.guild.get_channel(channel_id)
+            name = channel.name if channel else f"deleted-channel-{channel_id}"
+            lines.append(f"#{name}: {humanize_timedelta(seconds=total)}")
+
+        embed = discord.Embed(
+            title=f"Voice time for {member.display_name}",
+            description="\n".join(lines),
+            color=await ctx.embed_color(),
+        )
+        await ctx.send(embed=embed)
+
     @staticmethod
     def _format_leaderboard(ctx: commands.Context, rows) -> str:
         lines = []
@@ -239,6 +355,7 @@ class GameLog(commands.Cog):
     async def red_delete_data_for_user(self, *, requester, user_id: int) -> None:
         def _delete() -> None:
             self._db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            self._db.execute("DELETE FROM voice_sessions WHERE user_id = ?", (user_id,))
             self._db.commit()
 
         async with self._db_lock:
