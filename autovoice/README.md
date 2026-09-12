@@ -6,7 +6,7 @@ This is a from-scratch reimplementation of PhasecoreX's `autoroom` cog, with its
 
 ## For Members - `[p]autovoice`
 
-Once you join an AutoVoice Source, you will be moved into a brand new voice channel. This is your room, you can do whatever you want with it. Use the `[p]autovoice` command (alias `[p]vc`) to check out all the different things you can do. Some examples include:
+Once you join an AutoVoice Source, you will be moved into a brand new voice channel. This is your room, you can do whatever you want with it. Use the `[p]autovoice` command (alias `[p]av`) to check out all the different things you can do. Some examples include:
 
 -   Check its current settings with `[p]autovoice settings`
 -   Make it a public room with `[p]autovoice public` (everyone can see and join your room)

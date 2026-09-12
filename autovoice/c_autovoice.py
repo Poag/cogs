@@ -17,7 +17,7 @@ MAX_CHANNEL_NAME_LENGTH = 100
 class AutoVoiceCommands(MixinMeta, ABC):
     """The autovoice command."""
 
-    @commands.group(aliases=["vc"])
+    @commands.group(aliases=["av"])
     @commands.guild_only()
     async def autovoice(self, ctx: commands.Context) -> None:
         """Manage your AutoVoice room."""

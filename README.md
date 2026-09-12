@@ -37,7 +37,7 @@ Add this repository to your Red instance, then install a cog from it:
 
 ### autovoice commands
 
-Member-facing, once you're in a room you own (alias `[p]vc`):
+Member-facing, once you're in a room you own (alias `[p]av`):
 
 | Command | Description |
 | --- | --- |
