@@ -19,6 +19,7 @@ Add this repository to your Red instance, then install a cog from it:
 | `gamelog` | Logs what games members are playing per server, who's playing what, and how long each session lasts. Ignores non-game statuses (Spotify, custom statuses, etc). Requires the Presence and Server Members privileged intents. |
 | `voicelog` | Logs who's in voice channels per server, and how long each session lasts. Requires the Voice States intent. |
 | `autovoice` | Automatic voice channel creation: join a configured "source" voice channel and get moved into your own brand new voice channel, which is deleted once everyone leaves it. Requires the Voice States intent. Does *not* require the Presence or Server Members privileged intents for its core functionality - only the optional `game`-based room name/hint templates need the Presence intent (see below). Can migrate an existing AutoRoom setup with `[p]autovoiceset migrate`. |
+| `timedroles` | Grants or removes roles based on how long a member has been on the server, with optional required-role gating and an announce channel for role changes. No privileged intents required. Can migrate an existing `timerole` setup with `[p]timedroles migrate`. |
 
 ### gamelog commands
 
@@ -70,6 +71,31 @@ Admin-facing, for setting up sources (requires Manage Server):
 | `[p]autovoiceset modify specialperms sendmessage <source>` | Toggle whether members can send messages in a room's own chat. |
 | `[p]autovoiceset modify defaults` | Read how bitrate/user limit/permissions/member roles defaults work. |
 | `[p]autovoiceset migrate` | One-time import of this server's AutoRoom setup - see [Migrating from AutoRoom](#migrating-from-autoroom) below. |
+
+### timedroles commands
+
+Admin-facing (requires being a mod/admin, or Manage Server via the mod-or-permissions check):
+
+| Command | Description |
+| --- | --- |
+| `[p]timedroles addrole <role> <time> [requiredroles...]` | Grant `<role>` once a member has been on the server for `<time>` (e.g. `3d`, `1w2d`), optionally only once they already have one of `[requiredroles...]`. |
+| `[p]timedroles removerole <role> <time> [requiredroles...]` | Same, but removes `<role>` instead of granting it. |
+| `[p]timedroles channel [channel]` | Set (or clear, if omitted) the channel role grants/removals are announced to. |
+| `[p]timedroles reapply` | Toggle re-granting a role if a member loses it some other way. Default on. |
+| `[p]timedroles skipbots` | Toggle skipping bot accounts. Default on. |
+| `[p]timedroles delrole <role>` | Stop tracking a role. |
+| `[p]timedroles list` | List all currently configured timedroles. |
+| `[p]timedroles migrate` | One-time import of this server's `timerole` setup - see [Migrating from timerole](#migrating-from-timerole) below. |
+| `[p]runtimedroles` | Guild-owner only. Manually trigger the hourly check now, for troubleshooting. |
+
+### Migrating from timerole
+
+`timedroles` is a from-scratch reimplementation of fox-v3's `timerole` cog. `[p]timedroles migrate` reads `timerole`'s own stored configuration directly and copies it into `timedroles`'s config for the current server - the announce channel, reapply/skipbots toggles, every configured role, and the per-member tracking state (whether they've already received a role, and when to next check them) so nobody gets a role re-granted or re-checked from scratch. Workflow:
+
+1. `[p]unload timerole`.
+2. `[p]load timedroles`.
+3. In each server that used `timerole`, run `[p]timedroles migrate`. Safe to run more than once.
+4. Confirm things work (`[p]runtimedroles` to trigger a check immediately), then `[p]unload timerole` for good (or `[p]cog uninstall` it) - `migrate` never does this for you.
 
 ### Migrating from AutoRoom
 

@@ -1,0 +1,11 @@
+{
+    "author": ["Poag"],
+    "min_bot_version": "3.5.0",
+    "description": "Grants or removes roles based on how long a member has been on the server, with optional required-role gating and an announce channel for role changes. This is a from-scratch reimplementation of fox-v3's timerole cog, and includes a one-time `[p]timedroles migrate` command to import an existing timerole setup (announce channel, reapply/skipbots settings, configured roles, and per-member tracking state) without disruption.",
+    "hidden": false,
+    "install_msg": "Thanks for installing TimedRoles! Get started with `[p]timedroles addrole <role> <time>`. If you're migrating from timerole, run `[p]timedroles migrate` in each server that used it.",
+    "short": "Grants/removes roles based on time on server.",
+    "end_user_data_statement": "This cog stores, per configured role: a Discord user ID, whether they have already received that role, and when to next check their eligibility for it. This is used only to avoid re-checking members more often than necessary. All stored data for a user is deleted when Red processes a data deletion request for that user.",
+    "requirements": [],
+    "tags": ["roles", "utility", "automatic"]
+}
