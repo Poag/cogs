@@ -1,0 +1,12 @@
+{
+    "author": ["Poag"],
+    "min_bot_version": "3.5.0",
+    "min_python_version": [3, 11, 0],
+    "description": "Automatic voice channel creation. When a member joins an AutoVoice Source (voice channel), this cog moves them into a brand new voice channel that they own, in a chosen destination category. Once everyone leaves it, the channel is automatically deleted. Members can rename, resize, and lock down their own room; server admins configure which source channels create rooms, what type of room they create (public/locked/private/server-owned), and how rooms are named. This is a from-scratch reimplementation of PhasecoreX's AutoRoom cog with its legacy companion text channel feature dropped (superseded by Discord's built-in voice channel text chat), and includes a one-time `[p]autovoiceset migrate` command to import an existing AutoRoom setup (sources, per-room settings, and currently open rooms) without disruption.",
+    "hidden": false,
+    "install_msg": "Thanks for installing AutoVoice! Get started with `[p]autovoiceset create <source> <category>`. If you're migrating from AutoRoom, see the repo README's 'Migrating from AutoRoom' section for the `[p]autovoiceset migrate` workflow.",
+    "short": "Automatic voice channel creation and management.",
+    "end_user_data_statement": "This cog stores, per voice channel it creates: the Discord user ID of the channel's owner (if any), and a list of Discord user IDs denied access to it. This is used only to restore ownership/access-control state across bot restarts and re-apply deny lists to rejoining members. All stored data referencing a user is deleted when Red processes a data deletion request for that user.",
+    "requirements": ["func-timeout", "jinja2"],
+    "tags": ["audio", "auto", "automated", "automatic", "channel", "room", "voice"]
+}
