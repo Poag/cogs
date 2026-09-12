@@ -1,0 +1,11 @@
+{
+    "author": ["Poag"],
+    "min_bot_version": "3.5.0",
+    "description": "Logs roughly twenty kinds of server events (message edits/deletes, member joins/leaves/updates, role/channel/thread create/update/delete, guild updates, emoji/sticker changes, voice state changes, bot command usage, invite create/delete) as embeds or plain text to configurable channels, extending Red's core modlog. This is a from-scratch reimplementation of TrustyJAID's ExtendedModLog cog, keeping the same per-guild settings schema so an existing setup can be brought over with `[p]auditlog migrate`. Requires the Server Members and Message Content privileged intents for member-update and message-content logging respectively; the Voice States, Invites, and Emojis and Stickers intents are also needed but are non-privileged and enabled by Red's defaults.",
+    "hidden": false,
+    "install_msg": "Thanks for installing AuditLog! Set a modlog channel with `[p]modlogset modlog #channel`, then turn events on with `[p]auditlog toggle true <event...>`. If you're migrating from ExtendedModLog, run `[p]auditlog migrate` in each server that used it - see the repo README's 'Migrating from ExtendedModLog' section.",
+    "short": "Extended server event logging, an ExtendedModLog reimplementation.",
+    "end_user_data_statement": "This cog does not persist message content, join/leave history, or any other record of user activity beyond what is posted to the log channel itself (which is subject to Discord's own message retention). It stores, per server, only admin-configured settings: which events are enabled, which channel and colour/emoji/embed style each uses, lists of ignored channel/user/mod IDs, and a rolling snapshot of the server's current invite codes and use counts (used to guess who invited a new member; refreshed every 5 minutes and replaced each time, never kept as history). None of this is queryable by user ID and no separate database is used. Ignored-user/mod IDs are admin configuration rather than data about that user, so (matching ExtendedModLog) they are not automatically removed by a data deletion request; an admin can remove one with `[p]auditlog unignore`.",
+    "requirements": [],
+    "tags": ["logging", "moderation", "audit"]
+}
